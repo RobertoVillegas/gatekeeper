@@ -113,11 +113,24 @@ public class ApplyCommand implements SimpleCommand {
                 return;
             }
 
-            // Check if already has access
-            List<String> servers = entitlementRepository.findActiveServerIdsByUuid(player.getUniqueId());
-            if (!servers.isEmpty()) {
-                sendMessage(player, "&aYou already have access to the server!");
-                player.sendMessage(colorize("&7Servers: &f" + String.join(", ", servers)));
+            // Get all restricted servers and check which ones the player already has access to
+            List<String> allRestrictedServers = config.getRestrictedServers();
+            List<String> currentAccess = entitlementRepository.findActiveServerIdsByUuid(player.getUniqueId());
+
+            // Filter out servers they already have access to
+            List<String> availableServers = allRestrictedServers.stream()
+                .filter(server -> !currentAccess.contains(server))
+                .toList();
+
+            if (allRestrictedServers.isEmpty()) {
+                sendMessage(player, "&cNo servers are configured for applications.");
+                return;
+            }
+
+            if (availableServers.isEmpty()) {
+                // Player has access to all restricted servers
+                sendMessage(player, "&aYou already have access to all servers!");
+                player.sendMessage(colorize("&7Servers: &f" + String.join(", ", currentAccess)));
                 return;
             }
 
@@ -127,6 +140,13 @@ public class ApplyCommand implements SimpleCommand {
                 sendMessage(player, "&eYou already have a pending application.");
                 player.sendMessage(colorize("&7Use &f/apply status &7to check its status."));
                 return;
+            }
+
+            // Show which servers they're applying for if they already have partial access
+            if (!currentAccess.isEmpty()) {
+                player.sendMessage(Component.empty());
+                sendMessage(player, "&7You already have access to: &f" + String.join(", ", currentAccess));
+                sendMessage(player, "&7Applying for: &f" + String.join(", ", availableServers));
             }
 
             // Parse application data: name, inviter, [discord], [notes]
@@ -155,14 +175,6 @@ public class ApplyCommand implements SimpleCommand {
 
             // Create application data
             ApplicationData data = new ApplicationData(name, discord, inviter, notes);
-
-            // Get available servers (restricted ones)
-            List<String> availableServers = config.getRestrictedServers();
-
-            if (availableServers.isEmpty()) {
-                sendMessage(player, "&cNo servers are configured for applications.");
-                return;
-            }
 
             // Try to open the GUI
             boolean guiOpened = guiManager.openApplicationGui(player, data, availableServers);
