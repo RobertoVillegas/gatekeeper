@@ -115,41 +115,29 @@ public class Database {
     }
 
     private List<Migration> loadMigrations() throws IOException {
+        // In JAR files, we can't list directory contents, so we use known migrations
         List<Migration> migrations = new ArrayList<>();
 
-        // Load migration files from resources/db/
-        ClassLoader classLoader = getClass().getClassLoader();
+        // Load all known migrations
+        String[] knownMigrations = {
+            "V001_initial_schema.sql"
+            // Add future migrations here: "V002_add_feature.sql", etc.
+        };
 
-        // List files in db/ directory
-        try (InputStream is = classLoader.getResourceAsStream("db");
-             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+        for (String fileName : knownMigrations) {
+            Matcher matcher = MIGRATION_PATTERN.matcher(fileName);
+            if (matcher.matches()) {
+                int version = Integer.parseInt(matcher.group(1));
+                String description = matcher.group(2);
 
-            String fileName;
-            while ((fileName = reader.readLine()) != null) {
-                Matcher matcher = MIGRATION_PATTERN.matcher(fileName);
-                if (matcher.matches()) {
-                    int version = Integer.parseInt(matcher.group(1));
-                    String description = matcher.group(2);
-
-                    String sql = loadResourceFile("db/" + fileName);
+                String sql = loadResourceFile("db/" + fileName);
+                if (sql != null && !sql.isBlank()) {
                     migrations.add(new Migration(version, description, sql));
+                    logger.info("Loaded migration V{}: {}", version, description);
+                } else {
+                    logger.warn("Migration file not found or empty: {}", fileName);
                 }
             }
-        } catch (NullPointerException e) {
-            // Fallback: try to load known migration files directly
-            migrations.addAll(loadKnownMigrations());
-        }
-
-        return migrations;
-    }
-
-    private List<Migration> loadKnownMigrations() throws IOException {
-        List<Migration> migrations = new ArrayList<>();
-
-        // Try to load V001
-        String v001 = loadResourceFile("db/V001_initial_schema.sql");
-        if (v001 != null) {
-            migrations.add(new Migration(1, "initial_schema", v001));
         }
 
         return migrations;
