@@ -3,13 +3,10 @@ package com.gatekeeper.velocity.gui;
 import dev.simplix.protocolize.api.chat.ChatElement;
 import dev.simplix.protocolize.api.item.ItemStack;
 import dev.simplix.protocolize.api.item.component.CustomNameComponent;
-import dev.simplix.protocolize.api.item.component.EnchantmentGlintOverrideComponent;
 import dev.simplix.protocolize.api.item.component.LoreComponent;
 import dev.simplix.protocolize.data.ItemType;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Utility class for building ItemStacks for GUI display.
@@ -48,10 +45,6 @@ public class ItemBuilder {
             ChatElement.ofLegacyText(""),
             ChatElement.ofLegacyText(status)
         )));
-
-        if (selected) {
-            item.addComponent(EnchantmentGlintOverrideComponent.create(true));
-        }
 
         item.amount((byte) 1);
         return item;
