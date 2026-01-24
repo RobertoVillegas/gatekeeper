@@ -136,18 +136,41 @@ export function buildApprovedEmbed(
   const player = application.player;
   const platformEmoji = player?.platform === 'BEDROCK' ? '🪨' : '☕';
 
-  return new EmbedBuilder()
-    .setTitle('📋 Access Request')
+  const embed = new EmbedBuilder()
+    .setTitle('✅ Access Request Approved')
     .setColor(COLORS.APPROVED)
-    .addFields(
-      { name: 'Player', value: player?.username || 'Unknown', inline: true },
-      { name: 'Platform', value: `${platformEmoji} ${player?.platform || 'Unknown'}`, inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
-      { name: 'Status', value: `✅ Approved by ${adminTag}`, inline: true },
-      { name: 'Access', value: servers.join(', '), inline: true },
-      { name: 'Decided', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
-    )
-    .setTimestamp();
+    .setTimestamp(new Date(application.createdAt * 1000));
+
+  // Player info
+  if (player) {
+    embed.addFields(
+      { name: 'Player', value: player.username, inline: true },
+      { name: 'UUID', value: `\`${player.uuid}\``, inline: true },
+      { name: 'Platform', value: `${platformEmoji} ${player.platform}`, inline: true }
+    );
+  }
+
+  // Application data
+  embed.addFields(
+    { name: '\u200B', value: '───────────────────────────', inline: false },
+    { name: 'Real Name', value: application.realName, inline: true },
+    { name: 'Discord', value: application.discordTag || '—', inline: true },
+    { name: 'Invited By', value: application.inviter || '—', inline: true }
+  );
+
+  if (application.notes) {
+    embed.addFields({ name: 'Notes', value: application.notes, inline: false });
+  }
+
+  // Decision info
+  embed.addFields(
+    { name: '\u200B', value: '───────────────────────────', inline: false },
+    { name: 'Status', value: `✅ Approved by ${adminTag}`, inline: true },
+    { name: 'Access Granted', value: servers.join(', '), inline: true },
+    { name: 'Decided', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
+  );
+
+  return embed;
 }
 
 export function buildDeniedEmbed(
@@ -159,16 +182,37 @@ export function buildDeniedEmbed(
   const platformEmoji = player?.platform === 'BEDROCK' ? '🪨' : '☕';
 
   const embed = new EmbedBuilder()
-    .setTitle('📋 Access Request')
+    .setTitle('❌ Access Request Denied')
     .setColor(COLORS.DENIED)
-    .addFields(
-      { name: 'Player', value: player?.username || 'Unknown', inline: true },
-      { name: 'Platform', value: `${platformEmoji} ${player?.platform || 'Unknown'}`, inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
-      { name: 'Status', value: `❌ Denied by ${adminTag}`, inline: true },
-      { name: 'Decided', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
-    )
-    .setTimestamp();
+    .setTimestamp(new Date(application.createdAt * 1000));
+
+  // Player info
+  if (player) {
+    embed.addFields(
+      { name: 'Player', value: player.username, inline: true },
+      { name: 'UUID', value: `\`${player.uuid}\``, inline: true },
+      { name: 'Platform', value: `${platformEmoji} ${player.platform}`, inline: true }
+    );
+  }
+
+  // Application data
+  embed.addFields(
+    { name: '\u200B', value: '───────────────────────────', inline: false },
+    { name: 'Real Name', value: application.realName, inline: true },
+    { name: 'Discord', value: application.discordTag || '—', inline: true },
+    { name: 'Invited By', value: application.inviter || '—', inline: true }
+  );
+
+  if (application.notes) {
+    embed.addFields({ name: 'Notes', value: application.notes, inline: false });
+  }
+
+  // Decision info
+  embed.addFields(
+    { name: '\u200B', value: '───────────────────────────', inline: false },
+    { name: 'Status', value: `❌ Denied by ${adminTag}`, inline: true },
+    { name: 'Decided', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
+  );
 
   if (reason) {
     embed.addFields({ name: 'Reason', value: reason, inline: false });
