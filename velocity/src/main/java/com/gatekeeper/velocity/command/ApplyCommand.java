@@ -244,11 +244,11 @@ public class ApplyCommand implements SimpleCommand {
 
     /**
      * Handle text-based fallback when GUI is unavailable (unsupported protocol version).
+     * Since users can't toggle servers in text mode, we request all available servers.
      */
     private void handleTextFallback(Player player, ApplicationData data, List<String> availableServers) {
-        // Use default servers from config, or all available if no defaults configured
-        List<String> defaultServers = config.getDefaultServers();
-        List<String> serversToRequest = defaultServers.isEmpty() ? availableServers : defaultServers;
+        // Use all available servers since user can't toggle in text mode
+        List<String> serversToRequest = availableServers;
 
         // Show summary
         player.sendMessage(Component.empty());
