@@ -19,6 +19,22 @@ import type { Config } from '../config.js';
 // Store application data temporarily for select menu flow
 const pendingApprovals = new Map<string, { applicationId: number; application: Application }>();
 
+/**
+ * Parse requested servers from application notes.
+ * Notes contain: "Requested servers: survival, creative" or similar.
+ */
+function parseRequestedServers(notes?: string): string[] {
+  if (!notes) return [];
+
+  const match = notes.match(/Requested servers:\s*([^|]+)/i);
+  if (!match) return [];
+
+  return match[1]
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
 export async function handleButtonInteraction(
   interaction: ButtonInteraction,
   api: VelocityApi,
@@ -70,21 +86,25 @@ async function handleQuickApprove(
     // Get application details first
     const application = await api.getApplication(applicationId);
 
-    // Approve with default servers
+    // Use servers from application notes, fallback to defaults
+    const requestedServers = parseRequestedServers(application.notes);
+    const serversToGrant = requestedServers.length > 0 ? requestedServers : defaultServers;
+
+    // Approve with the requested servers
     await api.approveApplication(
       applicationId,
-      defaultServers,
+      serversToGrant,
       interaction.user.id
     );
 
     // Update the message
-    const embed = buildApprovedEmbed(application, defaultServers, interaction.user.tag);
+    const embed = buildApprovedEmbed(application, serversToGrant, interaction.user.tag);
     await interaction.editReply({
       embeds: [embed],
       components: [],
     });
 
-    console.log(`Application #${applicationId} approved by ${interaction.user.tag}`);
+    console.log(`Application #${applicationId} approved by ${interaction.user.tag} for servers: ${serversToGrant.join(', ')}`);
   } catch (error) {
     console.error('Failed to approve application:', error);
     await interaction.followUp({
