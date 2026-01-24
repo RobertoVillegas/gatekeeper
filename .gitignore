@@ -1,0 +1,29 @@
+# Java/Gradle
+velocity/.gradle/
+velocity/build/
+*.class
+*.jar
+*.war
+
+# Node.js
+discord-bot/node_modules/
+discord-bot/dist/
+
+# Environment files
+.env
+*.env.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

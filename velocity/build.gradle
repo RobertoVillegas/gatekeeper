@@ -1,0 +1,47 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
+}
+
+group = 'com.gatekeeper'
+version = '1.0.0-SNAPSHOT'
+base {
+    archivesName = 'access-manager-velocity'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly 'com.velocitypowered:velocity-api:3.4.0-SNAPSHOT'
+    annotationProcessor 'com.velocitypowered:velocity-api:3.4.0-SNAPSHOT'
+
+    // SQLite
+    implementation 'org.xerial:sqlite-jdbc:3.47.1.0'
+
+    // Lightweight HTTP server for admin API
+    implementation 'io.javalin:javalin:6.4.0'
+
+    // JSON handling
+    implementation 'com.google.code.gson:gson:2.11.0'
+
+    // YAML configuration (provided by Velocity, but needed for compilation)
+    compileOnly 'org.yaml:snakeyaml:2.3'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'org.sqlite', 'com.gatekeeper.libs.sqlite'
+    relocate 'io.javalin', 'com.gatekeeper.libs.javalin'
+    relocate 'com.google.gson', 'com.gatekeeper.libs.gson'
+}
+
+build.dependsOn shadowJar

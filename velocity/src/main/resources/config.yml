@@ -1,0 +1,44 @@
+# Gatekeeper Access Manager Configuration
+
+database:
+  path: data/access.db
+
+servers:
+  # Velocity server name → logical server ID
+  mapping:
+    crafty_lobby: lobby
+    crafty_survival: survival
+    crafty_smp2: smp2
+
+  # Servers requiring access approval (logical IDs)
+  restricted:
+    - survival
+    - smp2
+
+  # Default servers granted on quick-approve
+  default_servers:
+    - survival
+
+discord:
+  # Enable Discord integration
+  enabled: true
+
+  # Discord bot webhook (receives push events from Gatekeeper)
+  bot_webhook_url: "http://discord-bot:3000/events"
+
+  # Shared secret for API authentication (CHANGE THIS)
+  shared_secret: "CHANGE_ME_TO_A_SECURE_SECRET"
+
+api:
+  # Admin API server (receives commands from Discord bot)
+  enabled: true
+  port: 8080
+  bind_address: "0.0.0.0"
+
+application:
+  # Wizard timeout in seconds (player must complete within this time)
+  wizard_timeout_seconds: 300
+
+messages:
+  # Prefix for all plugin messages
+  prefix: "&8[&6Gatekeeper&8]&r "
