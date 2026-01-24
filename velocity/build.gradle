@@ -39,7 +39,7 @@ dependencies {
 
 shadowJar {
     archiveClassifier.set('')
-    relocate 'org.sqlite', 'com.gatekeeper.libs.sqlite'
+    // Note: SQLite JDBC cannot be relocated because it uses JNI native libraries
     relocate 'io.javalin', 'com.gatekeeper.libs.javalin'
     relocate 'com.google.gson', 'com.gatekeeper.libs.gson'
 }

@@ -37,9 +37,9 @@ public class Database {
         // Ensure parent directories exist
         Files.createDirectories(databasePath.getParent());
 
-        // Explicitly load SQLite driver (relocated by shadow plugin)
+        // Explicitly load SQLite driver
         try {
-            Class.forName("com.gatekeeper.libs.sqlite.JDBC");
+            Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException e) {
             throw new SQLException("SQLite JDBC driver not found", e);
         }
