@@ -3,6 +3,7 @@ velocity/.gradle/
 velocity/build/
 *.class
 *.jar
+!gradle-wrapper.jar
 *.war
 
 # Node.js
