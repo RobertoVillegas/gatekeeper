@@ -32,11 +32,11 @@ import java.util.concurrent.ScheduledExecutorService;
 @Plugin(
     id = "gatekeeper",
     name = "Gatekeeper",
-    version = "2.0.0-SNAPSHOT",
+    version = "2.1.0-SNAPSHOT",
     description = "Access management and application system",
     authors = {"Gatekeeper Team"},
     dependencies = {
-        @Dependency(id = "protocolize")
+        @Dependency(id = "protocolize", optional = true)
     }
 )
 public class GatekeeperPlugin {
@@ -61,7 +61,7 @@ public class GatekeeperPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        logger.info("Gatekeeper v2.0.0 starting...");
+        logger.info("Gatekeeper v2.1.0 starting...");
 
         try {
             // 1. Load configuration

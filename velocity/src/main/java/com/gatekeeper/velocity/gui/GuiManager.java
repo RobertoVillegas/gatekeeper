@@ -46,8 +46,10 @@ public class GuiManager {
 
     /**
      * Open the application GUI for a player.
+     *
+     * @return true if GUI opened successfully, false if fallback is needed (e.g., unsupported protocol)
      */
-    public void openApplicationGui(Player player, ApplicationData data, List<String> availableServers) {
+    public boolean openApplicationGui(Player player, ApplicationData data, List<String> availableServers) {
         UUID uuid = player.getUniqueId();
 
         // Close any existing GUI
@@ -69,9 +71,32 @@ public class GuiManager {
         );
 
         openGuis.put(uuid, gui);
-        gui.open();
 
-        logger.info("Opened application GUI for player {} ({})", player.getUsername(), uuid);
+        try {
+            gui.open();
+            logger.info("Opened application GUI for player {} ({})", player.getUsername(), uuid);
+            return true;
+        } catch (IllegalStateException e) {
+            // Protocolize doesn't support this protocol version
+            if (e.getMessage() != null && e.getMessage().contains("protocol version")) {
+                openGuis.remove(uuid);
+                logger.warn("GUI unavailable for player {} - unsupported protocol version", player.getUsername());
+                return false;
+            }
+            throw e; // Re-throw other errors
+        }
+    }
+
+    /**
+     * Submit an application directly (used for text fallback when GUI is unavailable).
+     */
+    public void submitApplicationDirect(Player player, ApplicationData data, List<String> servers) {
+        try {
+            submitApplication(player, data, servers);
+        } catch (SQLException e) {
+            logger.error("Failed to submit application for {}", player.getUsername(), e);
+            sendMessage(player, "&cFailed to submit application. Please try again later.");
+        }
     }
 
     /**

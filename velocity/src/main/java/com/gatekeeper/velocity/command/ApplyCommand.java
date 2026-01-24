@@ -164,11 +164,16 @@ public class ApplyCommand implements SimpleCommand {
                 return;
             }
 
-            // Open the GUI
-            guiManager.openApplicationGui(player, data, availableServers);
+            // Try to open the GUI
+            boolean guiOpened = guiManager.openApplicationGui(player, data, availableServers);
 
-            logger.info("Player {} ({}) started application with name='{}', inviter='{}', discord='{}'",
-                player.getUsername(), player.getUniqueId(), name, inviter, discord);
+            if (guiOpened) {
+                logger.info("Player {} ({}) started application with name='{}', inviter='{}', discord='{}'",
+                    player.getUsername(), player.getUniqueId(), name, inviter, discord);
+            } else {
+                // GUI failed (unsupported protocol version) - use text fallback
+                handleTextFallback(player, data, availableServers);
+            }
 
         } catch (SQLException e) {
             logger.error("Database error in /apply for {}", player.getUsername(), e);
@@ -235,6 +240,36 @@ public class ApplyCommand implements SimpleCommand {
             logger.error("Database error in /apply status for {}", player.getUsername(), e);
             sendMessage(player, "&cSomething went wrong. Please try again later.");
         }
+    }
+
+    /**
+     * Handle text-based fallback when GUI is unavailable (unsupported protocol version).
+     */
+    private void handleTextFallback(Player player, ApplicationData data, List<String> availableServers) {
+        // Use default servers from config, or all available if no defaults configured
+        List<String> defaultServers = config.getDefaultServers();
+        List<String> serversToRequest = defaultServers.isEmpty() ? availableServers : defaultServers;
+
+        // Show summary
+        player.sendMessage(Component.empty());
+        sendMessage(player, "&eGUI unavailable for your client version - using text mode");
+        player.sendMessage(Component.empty());
+        player.sendMessage(colorize("&7Name: &f" + data.realName()));
+        player.sendMessage(colorize("&7Inviter: &f" + data.inviter()));
+        if (data.discord() != null) {
+            player.sendMessage(colorize("&7Discord: &f" + data.discord()));
+        }
+        if (data.notes() != null) {
+            player.sendMessage(colorize("&7Notes: &f" + data.notes()));
+        }
+        player.sendMessage(colorize("&7Servers: &f" + String.join(", ", serversToRequest)));
+        player.sendMessage(Component.empty());
+
+        // Submit directly
+        guiManager.submitApplicationDirect(player, data, serversToRequest);
+
+        logger.info("Player {} ({}) submitted application via text fallback for servers: {}",
+            player.getUsername(), player.getUniqueId(), serversToRequest);
     }
 
     /**
