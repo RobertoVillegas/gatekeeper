@@ -3,41 +3,63 @@ package com.gatekeeper.velocity.command;
 import com.gatekeeper.velocity.config.GatekeeperConfig;
 import com.gatekeeper.velocity.database.ApplicationRepository;
 import com.gatekeeper.velocity.database.EntitlementRepository;
+import com.gatekeeper.velocity.gui.ApplicationData;
+import com.gatekeeper.velocity.gui.GuiManager;
 import com.gatekeeper.velocity.model.Application;
-import com.gatekeeper.velocity.model.ApplicationStatus;
-import com.gatekeeper.velocity.wizard.WizardManager;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.slf4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/**
+ * Command for players to apply for server access.
+ *
+ * Usage:
+ *   /apply "RealName" "Inviter" ["Discord"] ["Notes"]
+ *   /apply status
+ *
+ * Examples:
+ *   /apply "Roberto" "FriendName"
+ *   /apply "Roberto" "FriendName" "rob#1234"
+ *   /apply "Roberto" "FriendName" "rob#1234" "I'm a friend from school"
+ *   /apply status
+ */
 public class ApplyCommand implements SimpleCommand {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy 'at' h:mm a")
         .withZone(ZoneId.systemDefault());
 
+    // Pattern to match quoted strings or unquoted words
+    private static final Pattern ARG_PATTERN = Pattern.compile("\"([^\"]*)\"|([^\\s]+)");
+
     private final Logger logger;
     private final GatekeeperConfig config;
-    private final WizardManager wizardManager;
+    private final GuiManager guiManager;
     private final ApplicationRepository applicationRepository;
     private final EntitlementRepository entitlementRepository;
 
     public ApplyCommand(
         Logger logger,
         GatekeeperConfig config,
-        WizardManager wizardManager,
+        GuiManager guiManager,
         ApplicationRepository applicationRepository,
         EntitlementRepository entitlementRepository
     ) {
         this.logger = logger;
         this.config = config;
-        this.wizardManager = wizardManager;
+        this.guiManager = guiManager;
         this.applicationRepository = applicationRepository;
         this.entitlementRepository = entitlementRepository;
     }
@@ -49,25 +71,45 @@ public class ApplyCommand implements SimpleCommand {
             return;
         }
 
-        String[] args = invocation.arguments();
+        // Join all arguments back into a single string for proper parsing
+        String fullArgs = String.join(" ", invocation.arguments());
 
-        if (args.length == 0) {
-            handleApply(player);
-        } else {
-            switch (args[0].toLowerCase()) {
-                case "status" -> handleStatus(player);
-                case "cancel" -> handleCancel(player);
-                default -> sendUsage(player);
-            }
+        if (fullArgs.isEmpty()) {
+            sendUsage(player);
+            return;
         }
+
+        // Parse arguments
+        List<String> args = parseArguments(fullArgs);
+
+        if (args.isEmpty()) {
+            sendUsage(player);
+            return;
+        }
+
+        // Check for subcommands
+        String firstArg = args.get(0).toLowerCase();
+        if (firstArg.equals("status")) {
+            handleStatus(player);
+            return;
+        }
+
+        // Otherwise, treat as application with arguments
+        handleApply(player, args);
     }
 
-    private void handleApply(Player player) {
+    private void handleApply(Player player, List<String> args) {
+        // Validate argument count (need at least: name, inviter)
+        if (args.size() < 2) {
+            sendMessage(player, "&cNot enough arguments.");
+            sendUsage(player);
+            return;
+        }
+
         try {
-            // Check if already in wizard
-            if (wizardManager.hasActiveSession(player.getUniqueId())) {
-                sendMessage(player, "&eYou already have an application in progress.");
-                sendMessage(player, "&7Type &fcancel &7to abort it, or continue answering.");
+            // Check if already has GUI open
+            if (guiManager.hasOpenGui(player.getUniqueId())) {
+                sendMessage(player, "&eYou already have an application form open.");
                 return;
             }
 
@@ -87,8 +129,46 @@ public class ApplyCommand implements SimpleCommand {
                 return;
             }
 
-            // Start wizard
-            wizardManager.startSession(player);
+            // Parse application data: name, inviter, [discord], [notes]
+            String name = sanitize(args.get(0));
+            String inviter = sanitize(args.get(1));
+            String discord = args.size() > 2 ? sanitize(args.get(2)) : null;
+            String notes = args.size() > 3 ? sanitize(args.get(3)) : null;
+
+            // Validate lengths
+            if (name.length() > 50) {
+                sendMessage(player, "&cName is too long (max 50 characters).");
+                return;
+            }
+            if (inviter.length() > 50) {
+                sendMessage(player, "&cInviter name is too long (max 50 characters).");
+                return;
+            }
+            if (discord != null && discord.length() > 50) {
+                sendMessage(player, "&cDiscord tag is too long (max 50 characters).");
+                return;
+            }
+            if (notes != null && notes.length() > 200) {
+                sendMessage(player, "&cNotes are too long (max 200 characters).");
+                return;
+            }
+
+            // Create application data
+            ApplicationData data = new ApplicationData(name, discord, inviter, notes);
+
+            // Get available servers (restricted ones)
+            List<String> availableServers = config.getRestrictedServers();
+
+            if (availableServers.isEmpty()) {
+                sendMessage(player, "&cNo servers are configured for applications.");
+                return;
+            }
+
+            // Open the GUI
+            guiManager.openApplicationGui(player, data, availableServers);
+
+            logger.info("Player {} ({}) started application with name='{}', inviter='{}', discord='{}'",
+                player.getUsername(), player.getUniqueId(), name, inviter, discord);
 
         } catch (SQLException e) {
             logger.error("Database error in /apply for {}", player.getUsername(), e);
@@ -106,7 +186,7 @@ public class ApplyCommand implements SimpleCommand {
 
             if (latest.isEmpty() && servers.isEmpty()) {
                 sendMessage(player, "&7You have no application on record.");
-                player.sendMessage(colorize("&7Use &f/apply &7to request access."));
+                sendUsage(player);
                 return;
             }
 
@@ -157,19 +237,47 @@ public class ApplyCommand implements SimpleCommand {
         }
     }
 
-    private void handleCancel(Player player) {
-        if (wizardManager.hasActiveSession(player.getUniqueId())) {
-            wizardManager.cancelSession(player);
-        } else {
-            sendMessage(player, "&7You don't have an active application wizard.");
+    /**
+     * Parse a command string into arguments, handling quoted strings.
+     */
+    private List<String> parseArguments(String input) {
+        List<String> args = new ArrayList<>();
+        Matcher matcher = ARG_PATTERN.matcher(input);
+
+        while (matcher.find()) {
+            if (matcher.group(1) != null) {
+                // Quoted string
+                args.add(matcher.group(1));
+            } else if (matcher.group(2) != null) {
+                // Unquoted word
+                args.add(matcher.group(2));
+            }
         }
+
+        return args;
     }
 
     private void sendUsage(Player player) {
-        sendMessage(player, "&7Usage:");
-        player.sendMessage(colorize("&f/apply &7- Start an access application"));
+        player.sendMessage(Component.empty());
+        sendMessage(player, "&fServer Access Application");
+        player.sendMessage(Component.empty());
+        player.sendMessage(colorize("&7Usage:"));
+        player.sendMessage(colorize("&f/apply \"Name\" \"Inviter\" &7[\"Discord\"] [\"Notes\"]"));
+        player.sendMessage(Component.empty());
+        player.sendMessage(colorize("&7Examples:"));
+        player.sendMessage(colorize("&f/apply \"Roberto\" \"FriendName\""));
+        player.sendMessage(colorize("&f/apply \"Roberto\" \"FriendName\" \"robdiscord\""));
+        player.sendMessage(Component.empty());
+
+        // Clickable example
+        Component clickable = Component.text("Click here to use example command", NamedTextColor.AQUA)
+            .clickEvent(ClickEvent.suggestCommand("/apply \"YourName\" \"WhoInvitedYou\""))
+            .hoverEvent(HoverEvent.showText(Component.text("Click to fill in the command")));
+        player.sendMessage(clickable);
+
+        player.sendMessage(Component.empty());
+        player.sendMessage(colorize("&7Other commands:"));
         player.sendMessage(colorize("&f/apply status &7- Check your application status"));
-        player.sendMessage(colorize("&f/apply cancel &7- Cancel an in-progress application"));
     }
 
     private void sendMessage(Player player, String message) {
@@ -179,6 +287,14 @@ public class ApplyCommand implements SimpleCommand {
     private String formatTime(Instant instant) {
         if (instant == null) return "—";
         return DATE_FORMAT.format(instant);
+    }
+
+    private String sanitize(String input) {
+        if (input == null) return null;
+        return input
+            .replaceAll("§[0-9a-fk-or]", "")
+            .replaceAll("&[0-9a-fk-or]", "")
+            .trim();
     }
 
     private Component colorize(String message) {
@@ -194,9 +310,21 @@ public class ApplyCommand implements SimpleCommand {
 
     @Override
     public List<String> suggest(Invocation invocation) {
-        if (invocation.arguments().length <= 1) {
-            return List.of("status", "cancel");
+        String[] args = invocation.arguments();
+
+        if (args.length == 0) {
+            return List.of("status", "\"YourName\" \"WhoInvitedYou\"");
         }
+
+        if (args.length == 1 && !args[0].startsWith("\"")) {
+            String partial = args[0].toLowerCase();
+            List<String> suggestions = new ArrayList<>();
+            if ("status".startsWith(partial)) {
+                suggestions.add("status");
+            }
+            return suggestions;
+        }
+
         return List.of();
     }
 }

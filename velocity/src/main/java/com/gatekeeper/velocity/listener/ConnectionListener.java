@@ -3,9 +3,9 @@ package com.gatekeeper.velocity.listener;
 import com.gatekeeper.velocity.config.GatekeeperConfig;
 import com.gatekeeper.velocity.database.EntitlementRepository;
 import com.gatekeeper.velocity.database.PlayerRepository;
+import com.gatekeeper.velocity.gui.GuiManager;
 import com.gatekeeper.velocity.model.GatekeeperPlayer;
 import com.gatekeeper.velocity.model.Platform;
-import com.gatekeeper.velocity.wizard.WizardManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
@@ -22,20 +22,20 @@ public class ConnectionListener {
     private final GatekeeperConfig config;
     private final PlayerRepository playerRepository;
     private final EntitlementRepository entitlementRepository;
-    private final WizardManager wizardManager;
+    private final GuiManager guiManager;
 
     public ConnectionListener(
         Logger logger,
         GatekeeperConfig config,
         PlayerRepository playerRepository,
         EntitlementRepository entitlementRepository,
-        WizardManager wizardManager
+        GuiManager guiManager
     ) {
         this.logger = logger;
         this.config = config;
         this.playerRepository = playerRepository;
         this.entitlementRepository = entitlementRepository;
-        this.wizardManager = wizardManager;
+        this.guiManager = guiManager;
     }
 
     @Subscribe
@@ -116,8 +116,8 @@ public class ConnectionListener {
     public void onDisconnect(DisconnectEvent event) {
         Player player = event.getPlayer();
 
-        // Clean up wizard session if any
-        wizardManager.handleDisconnect(player.getUniqueId());
+        // Clean up GUI if any
+        guiManager.handleDisconnect(player.getUniqueId());
 
         // Update last seen
         try {

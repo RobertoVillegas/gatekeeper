@@ -9,17 +9,17 @@ import com.gatekeeper.velocity.database.AuditLogRepository;
 import com.gatekeeper.velocity.database.Database;
 import com.gatekeeper.velocity.database.EntitlementRepository;
 import com.gatekeeper.velocity.database.PlayerRepository;
-import com.gatekeeper.velocity.listener.ChatListener;
+import com.gatekeeper.velocity.gui.GuiManager;
 import com.gatekeeper.velocity.listener.ConnectionListener;
 import com.gatekeeper.velocity.service.AccessService;
 import com.gatekeeper.velocity.service.DiscordNotifier;
-import com.gatekeeper.velocity.wizard.WizardManager;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -32,9 +32,12 @@ import java.util.concurrent.ScheduledExecutorService;
 @Plugin(
     id = "gatekeeper",
     name = "Gatekeeper",
-    version = "1.0.0-SNAPSHOT",
+    version = "2.0.0-SNAPSHOT",
     description = "Access management and application system",
-    authors = {"Gatekeeper Team"}
+    authors = {"Gatekeeper Team"},
+    dependencies = {
+        @Dependency(id = "protocolize")
+    }
 )
 public class GatekeeperPlugin {
 
@@ -46,7 +49,7 @@ public class GatekeeperPlugin {
     private GatekeeperConfig config;
     private Database database;
     private ScheduledExecutorService scheduler;
-    private WizardManager wizardManager;
+    private GuiManager guiManager;
     private AdminApiServer adminApiServer;
 
     @Inject
@@ -58,7 +61,7 @@ public class GatekeeperPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        logger.info("Gatekeeper v1.0.0 starting...");
+        logger.info("Gatekeeper v2.0.0 starting...");
 
         try {
             // 1. Load configuration
@@ -97,15 +100,14 @@ public class GatekeeperPlugin {
                 discordNotifier
             );
 
-            // 7. Create wizard manager
-            wizardManager = new WizardManager(
+            // 7. Create GUI manager
+            guiManager = new GuiManager(
                 logger,
                 config,
                 playerRepository,
                 applicationRepository,
                 discordNotifier
             );
-            wizardManager.startCleanupTask(scheduler);
 
             // 8. Register event listeners
             ConnectionListener connectionListener = new ConnectionListener(
@@ -113,12 +115,9 @@ public class GatekeeperPlugin {
                 config,
                 playerRepository,
                 entitlementRepository,
-                wizardManager
+                guiManager
             );
             server.getEventManager().register(this, connectionListener);
-
-            ChatListener chatListener = new ChatListener(wizardManager);
-            server.getEventManager().register(this, chatListener);
 
             logger.info("Event listeners registered");
 
@@ -132,7 +131,7 @@ public class GatekeeperPlugin {
             commandManager.register(applyMeta, new ApplyCommand(
                 logger,
                 config,
-                wizardManager,
+                guiManager,
                 applicationRepository,
                 entitlementRepository
             ));
@@ -186,9 +185,9 @@ public class GatekeeperPlugin {
             adminApiServer.stop();
         }
 
-        // Stop wizard manager
-        if (wizardManager != null) {
-            wizardManager.shutdown();
+        // Stop GUI manager
+        if (guiManager != null) {
+            guiManager.shutdown();
         }
 
         // Shutdown scheduler
