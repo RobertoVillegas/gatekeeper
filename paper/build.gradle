@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'com.gradleup.shadow' version '9.0.0-beta4'
+    id 'com.gradleup.shadow' version '9.4.2'
 }
 
 group = 'com.gatekeeper'
@@ -10,8 +10,9 @@ base {
 }
 
 java {
+    // Paper 26.2 runs on Java 25, so we compile against it with a Java 25 toolchain.
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -21,9 +22,7 @@ repositories {
 }
 
 dependencies {
-    // Compile against a stable Paper API. The plugin only uses the stable Bukkit API
-    // (inventories, items, events, scheduler, commands) so it loads on much newer servers.
-    // If you want to compile against your exact server version, bump this property.
+    // Compile against the running server's Paper API (see gradle.properties).
     compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
 
     // JSON for talking to the Velocity admin API. Shaded + relocated.

@@ -1,7 +1,7 @@
 name: GatekeeperPaper
 version: '1.0.0'
 main: com.gatekeeper.paper.GatekeeperPaperPlugin
-api-version: '1.21'
+api-version: '26.2'
 authors: [Gatekeeper Team]
 description: Lobby-side inventory GUI for the Gatekeeper access/application system.
 commands:

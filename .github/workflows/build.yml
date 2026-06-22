@@ -43,11 +43,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      # Paper 26.2 targets Java 25, so we need a JDK 25 toolchain to compile against
+      # its API. Gradle itself runs on JDK 21 (last in the list = default JAVA_HOME);
+      # it auto-detects the installed JDK 25 for the compile toolchain.
+      - name: Set up JDKs (25 for toolchain, 21 to run Gradle)
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
           distribution: 'temurin'
+          java-version: |
+            25
+            21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
