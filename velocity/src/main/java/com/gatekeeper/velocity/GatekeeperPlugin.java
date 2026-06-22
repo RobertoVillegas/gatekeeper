@@ -2,7 +2,6 @@ package com.gatekeeper.velocity;
 
 import com.gatekeeper.velocity.api.AdminApiServer;
 import com.gatekeeper.velocity.command.AccessCommand;
-import com.gatekeeper.velocity.command.ApplyCommand;
 import com.gatekeeper.velocity.config.GatekeeperConfig;
 import com.gatekeeper.velocity.database.ApplicationRepository;
 import com.gatekeeper.velocity.database.AuditLogRepository;
@@ -124,17 +123,12 @@ public class GatekeeperPlugin {
             // 9. Register commands
             CommandManager commandManager = server.getCommandManager();
 
-            CommandMeta applyMeta = commandManager.metaBuilder("apply")
-                .aliases("request", "whitelist")
-                .plugin(this)
-                .build();
-            commandManager.register(applyMeta, new ApplyCommand(
-                logger,
-                config,
-                guiManager,
-                applicationRepository,
-                entitlementRepository
-            ));
+            // NOTE: /apply is intentionally NOT registered on the proxy anymore.
+            // The player-facing application flow lives in the GatekeeperPaper lobby
+            // plugin, which opens a native backend inventory GUI (protocol-robust,
+            // Geyser-friendly) and submits via the admin API. Registering /apply here
+            // would let Velocity intercept it before the backend and re-open the old
+            // Protocolize GUI that breaks on newer/unsupported protocol versions.
 
             CommandMeta accessMeta = commandManager.metaBuilder("access")
                 .aliases("gatekeeper", "gk")
@@ -158,7 +152,8 @@ public class GatekeeperPlugin {
                     accessService,
                     playerRepository,
                     applicationRepository,
-                    entitlementRepository
+                    entitlementRepository,
+                    discordNotifier
                 );
                 adminApiServer.start();
             }

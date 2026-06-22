@@ -8,7 +8,9 @@ import com.gatekeeper.velocity.model.Application;
 import com.gatekeeper.velocity.model.ApplicationStatus;
 import com.gatekeeper.velocity.model.Entitlement;
 import com.gatekeeper.velocity.model.GatekeeperPlayer;
+import com.gatekeeper.velocity.model.Platform;
 import com.gatekeeper.velocity.service.AccessService;
+import com.gatekeeper.velocity.service.DiscordNotifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.javalin.Javalin;
@@ -34,6 +36,7 @@ public class AdminApiServer {
     private final PlayerRepository playerRepository;
     private final ApplicationRepository applicationRepository;
     private final EntitlementRepository entitlementRepository;
+    private final DiscordNotifier discordNotifier;
 
     private Javalin app;
 
@@ -43,7 +46,8 @@ public class AdminApiServer {
         AccessService accessService,
         PlayerRepository playerRepository,
         ApplicationRepository applicationRepository,
-        EntitlementRepository entitlementRepository
+        EntitlementRepository entitlementRepository,
+        DiscordNotifier discordNotifier
     ) {
         this.logger = logger;
         this.config = config;
@@ -51,6 +55,7 @@ public class AdminApiServer {
         this.playerRepository = playerRepository;
         this.applicationRepository = applicationRepository;
         this.entitlementRepository = entitlementRepository;
+        this.discordNotifier = discordNotifier;
     }
 
     public void start() {
@@ -70,6 +75,10 @@ public class AdminApiServer {
         app.get("/api/players/{uuid}/entitlements", this::handleGetPlayerEntitlements);
         app.post("/api/entitlements/grant", this::handleGrant);
         app.post("/api/entitlements/revoke", this::handleRevoke);
+
+        // Player-facing endpoints (used by the Paper lobby GUI)
+        app.get("/api/players/{uuid}/application-context", this::handleApplicationContext);
+        app.post("/api/applications", this::handleSubmitApplication);
 
         app.start(config.getApiBindAddress(), config.getApiPort());
 
@@ -312,6 +321,110 @@ public class AdminApiServer {
         }
     }
 
+    /**
+     * Returns everything the lobby GUI needs to render the application flow for a player:
+     * which servers are restricted, which the player already has, which remain available,
+     * and the status of their latest application (for /apply status).
+     */
+    private void handleApplicationContext(Context ctx) {
+        try {
+            UUID uuid = UUID.fromString(ctx.pathParam("uuid"));
+
+            List<String> restricted = config.getRestrictedServers();
+            List<String> currentAccess = entitlementRepository.findActiveServerIdsByUuid(uuid);
+            List<String> available = restricted.stream()
+                .filter(server -> !currentAccess.contains(server))
+                .toList();
+
+            Optional<Application> pending = applicationRepository.findPendingByUuid(uuid);
+            Optional<Application> latest = applicationRepository.findLatestByUuid(uuid);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("uuid", uuid.toString());
+            response.put("restrictedServers", restricted);
+            response.put("currentAccess", currentAccess);
+            response.put("availableServers", available);
+            response.put("defaultServers", config.getDefaultServers());
+            response.put("hasPending", pending.isPresent());
+            response.put("latest", latest.map(this::enrichApplication).orElse(null));
+
+            ctx.json(response);
+        } catch (IllegalArgumentException e) {
+            ctx.status(HttpStatus.BAD_REQUEST);
+            ctx.json(error("Invalid uuid"));
+        } catch (SQLException e) {
+            logger.error("Failed to build application context", e);
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+            ctx.json(error("Database error"));
+        }
+    }
+
+    /**
+     * Creates a pending application on behalf of a player (submitted from the lobby GUI).
+     * Mirrors the logic that previously lived in the Velocity-side GuiManager.
+     */
+    private void handleSubmitApplication(Context ctx) {
+        try {
+            SubmitApplicationRequest request = GSON.fromJson(ctx.body(), SubmitApplicationRequest.class);
+
+            if (request == null || request.uuid == null || request.username == null
+                || request.realName == null || request.inviter == null) {
+                ctx.status(HttpStatus.BAD_REQUEST);
+                ctx.json(error("Missing required fields: uuid, username, realName, inviter"));
+                return;
+            }
+            if (request.servers == null || request.servers.isEmpty()) {
+                ctx.status(HttpStatus.BAD_REQUEST);
+                ctx.json(error("At least one server must be requested"));
+                return;
+            }
+
+            UUID uuid = UUID.fromString(request.uuid);
+
+            // Reject if there is already a pending application
+            if (applicationRepository.findPendingByUuid(uuid).isPresent()) {
+                ctx.status(HttpStatus.CONFLICT);
+                ctx.json(Map.of("success", false, "error", "You already have a pending application."));
+                return;
+            }
+
+            Platform platform = Platform.BEDROCK.name().equalsIgnoreCase(request.platform)
+                ? Platform.BEDROCK
+                : Platform.JAVA;
+            GatekeeperPlayer gkPlayer = playerRepository.upsert(
+                GatekeeperPlayer.create(uuid, request.username, platform));
+
+            String serversNote = "Requested servers: " + String.join(", ", request.servers);
+            String fullNotes = (request.notes != null && !request.notes.isBlank())
+                ? request.notes + " | " + serversNote
+                : serversNote;
+
+            Application application = applicationRepository.insert(Application.createPending(
+                uuid,
+                request.realName,
+                (request.discord != null && request.discord.isBlank()) ? null : request.discord,
+                request.inviter,
+                fullNotes
+            ));
+
+            logger.info("Player {} ({}) submitted application #{} via lobby GUI for servers: {}",
+                request.username, uuid, application.id(), request.servers);
+
+            if (discordNotifier != null) {
+                discordNotifier.notifyNewApplication(application, gkPlayer);
+            }
+
+            ctx.json(Map.of("success", true, "applicationId", application.id()));
+        } catch (IllegalArgumentException e) {
+            ctx.status(HttpStatus.BAD_REQUEST);
+            ctx.json(error("Invalid request: " + e.getMessage()));
+        } catch (SQLException e) {
+            logger.error("Failed to submit application", e);
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+            ctx.json(error("Database error"));
+        }
+    }
+
     private Map<String, Object> enrichApplication(Application app) {
         Map<String, Object> result = new HashMap<>();
         result.put("id", app.id());
@@ -372,5 +485,16 @@ public class AdminApiServer {
         String uuid;
         String serverId;
         String admin;
+    }
+
+    private static class SubmitApplicationRequest {
+        String uuid;
+        String username;
+        String platform;
+        String realName;
+        String inviter;
+        String discord;
+        String notes;
+        List<String> servers;
     }
 }

@@ -1,0 +1,34 @@
+# Gatekeeper Paper (lobby GUI) configuration
+
+api:
+  # Base URL of the Velocity Gatekeeper admin API.
+  # In Docker this is usually the Velocity service name + port (see Velocity config: api.port).
+  base_url: "http://velocity:8080"
+
+  # Must match `discord.shared_secret` in the Velocity config.yml.
+  shared_secret: "CHANGE_ME_TO_A_SECURE_SECRET"
+
+  # HTTP timeout for calls to Velocity.
+  timeout_seconds: 5
+
+# Worlds shown in /gkmenu. `velocity_name` is the Velocity server name used by /server,
+# and `logical_id` must match the logical IDs in the Velocity config (restricted/mapping).
+worlds:
+  - logical_id: lobby
+    velocity_name: crafty_lobby
+    display_name: "&aLobby"
+    material: GRASS_BLOCK
+    restricted: false
+  - logical_id: survival
+    velocity_name: crafty_survival
+    display_name: "&6Survival"
+    material: DIAMOND_SWORD
+    restricted: true
+  - logical_id: smp2
+    velocity_name: crafty_smp2
+    display_name: "&bSMP2"
+    material: NETHER_STAR
+    restricted: true
+
+messages:
+  prefix: "&8[&6Gatekeeper&8]&r "

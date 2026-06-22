@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
+}
+
+group = 'com.gatekeeper'
+version = '1.0.0-SNAPSHOT'
+base {
+    archivesName = 'gatekeeper-paper'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    // Compile against a stable Paper API. The plugin only uses the stable Bukkit API
+    // (inventories, items, events, scheduler, commands) so it loads on much newer servers.
+    // If you want to compile against your exact server version, bump this property.
+    compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
+
+    // JSON for talking to the Velocity admin API. Shaded + relocated.
+    implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'com.google.gson', 'com.gatekeeper.paper.libs.gson'
+}
+
+build.dependsOn shadowJar

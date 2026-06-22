@@ -1,0 +1,13 @@
+name: GatekeeperPaper
+version: '1.0.0'
+main: com.gatekeeper.paper.GatekeeperPaperPlugin
+api-version: '1.21'
+authors: [Gatekeeper Team]
+description: Lobby-side inventory GUI for the Gatekeeper access/application system.
+commands:
+  apply:
+    description: Apply for server access (opens a GUI to pick servers).
+    usage: /apply "Name" "Inviter" ["Discord"] ["Notes"]
+  gkmenu:
+    description: Open the world selection menu.
+    aliases: [worlds, servers]

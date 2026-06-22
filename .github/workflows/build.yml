@@ -37,6 +37,31 @@ jobs:
           name: velocity-plugin
           path: velocity/build/libs/access-manager-velocity-*.jar
 
+  # Build Paper (lobby GUI) plugin JAR
+  build-paper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Paper plugin
+        working-directory: paper
+        run: ./gradlew build
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-plugin
+          path: paper/build/libs/gatekeeper-paper-*.jar
+
   # Build Discord bot Docker image
   build-discord-bot:
     runs-on: ubuntu-latest
@@ -83,17 +108,23 @@ jobs:
   # Create release with artifacts
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-velocity, build-discord-bot]
+    needs: [build-velocity, build-paper, build-discord-bot]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download JAR artifact
+      - name: Download Velocity JAR artifact
         uses: actions/download-artifact@v4
         with:
           name: velocity-plugin
+          path: ./artifacts
+
+      - name: Download Paper JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: paper-plugin
           path: ./artifacts
 
       - name: Create Release

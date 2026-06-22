@@ -1,6 +1,8 @@
 # Java/Gradle
 velocity/.gradle/
 velocity/build/
+paper/.gradle/
+paper/build/
 *.class
 *.jar
 !gradle-wrapper.jar
