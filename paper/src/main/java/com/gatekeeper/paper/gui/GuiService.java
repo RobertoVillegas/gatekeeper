@@ -76,6 +76,49 @@ public class GuiService {
         });
     }
 
+    /** Join a configured world, or open an application preselected for it if locked. */
+    public void go(Player player, WorldEntry world) {
+        if (!world.restricted()) {
+            connect(player, world);
+            return;
+        }
+
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            ApplicationContext ctx = api.getContext(player.getUniqueId(), player.getName());
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) {
+                    return;
+                }
+                if (ctx == null) {
+                    msg(player, "&cCould not reach the access server. Please try again later.");
+                    return;
+                }
+                if (ctx.currentAccess != null && ctx.currentAccess.contains(world.logicalId())) {
+                    connect(player, world);
+                    return;
+                }
+                if (ctx.hasPending) {
+                    msg(player, "&eYou already have a pending application. Use &f/apply status&e to check it.");
+                    return;
+                }
+                if (ctx.availableServers == null || !ctx.availableServers.contains(world.logicalId())) {
+                    msg(player, "&cYou do not have access to &f" + world.logicalId() + "&c.");
+                    msg(player, "&7Use &f/apply status &7to check your application.");
+                    return;
+                }
+                msg(player, "&eYou need access to join &f" + world.logicalId() + "&e.");
+                ApplicationData data = new ApplicationData(
+                    player.getName(),
+                    "Server NPC",
+                    "",
+                    "Requested " + world.logicalId() + " from lobby NPC"
+                );
+                ApplyGuiHolder holder = new ApplyGuiHolder(data, ctx.availableServers, world.logicalId());
+                player.openInventory(holder.create());
+            });
+        });
+    }
+
     /** Submit the selected application (called from the GUI click). */
     public void submit(Player player, ApplyGuiHolder holder) {
         ApplicationData data = holder.data();

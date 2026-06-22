@@ -47,6 +47,10 @@ public class ApplyGuiHolder implements InventoryHolder {
         }
     }
 
+    public ApplyGuiHolder(ApplicationData data, List<String> availableServers, String selectedServer) {
+        this(data, availableServers, List.of(selectedServer));
+    }
+
     /** Build the inventory and render the initial state. */
     public Inventory create() {
         inventory = Bukkit.createInventory(this, SIZE, Text.of("&8Server Access Application"));

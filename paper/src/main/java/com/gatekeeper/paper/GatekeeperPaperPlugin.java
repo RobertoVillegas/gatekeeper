@@ -2,6 +2,7 @@ package com.gatekeeper.paper;
 
 import com.gatekeeper.paper.api.GatekeeperApiClient;
 import com.gatekeeper.paper.command.ApplyCommand;
+import com.gatekeeper.paper.command.GoCommand;
 import com.gatekeeper.paper.command.MenuCommand;
 import com.gatekeeper.paper.config.PaperConfig;
 import com.gatekeeper.paper.gui.GuiListener;
@@ -32,6 +33,7 @@ public class GatekeeperPaperPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new GuiListener(service), this);
 
         register("apply", new ApplyCommand(service));
+        register("gkgo", new GoCommand(config, service));
         register("gkmenu", new MenuCommand(service));
 
         getLogger().info("GatekeeperPaper enabled. API target: " + config.getApiBaseUrl()

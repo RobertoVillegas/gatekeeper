@@ -8,6 +8,10 @@ commands:
   apply:
     description: Apply for server access (opens a GUI to pick servers).
     usage: /apply "Name" "Inviter" ["Discord"] ["Notes"]
+  gkgo:
+    description: Join a Gatekeeper-configured server, or request access if locked.
+    usage: /gkgo <server>
+    aliases: [gatekeepergo]
   gkmenu:
     description: Open the world selection menu.
     aliases: [worlds, servers]
