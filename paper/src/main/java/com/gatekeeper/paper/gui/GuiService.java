@@ -181,6 +181,8 @@ public class GuiService {
 
     /** Connect the player to a backend server through the Velocity proxy. */
     public void connect(Player player, WorldEntry world) {
+        msg(player, "&7Sending you to " + world.displayName() + "&7...");
+
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeUTF("Connect");
         out.writeUTF(world.velocityName());
